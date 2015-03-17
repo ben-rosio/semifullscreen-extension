@@ -4,6 +4,10 @@ dependencies:
     cache_directories:
         - node_modules
 
+general:
+    artifacts:
+        - "semiscreen.crx"
+
 test:
     post:
         - echo "$PRIVATE_PACKER_KEY" > extension.pem
