@@ -4,12 +4,8 @@ dependencies:
     cache_directories:
         - node_modules
 
-general:
-    artifacts:
-        - "semiscreen.crx"
-
 test:
     post:
         - echo "$private_packer_key" > extension.pem
         - sed -i "s/__/\n/g" extension.pem
-        - bash crxmake.sh src/ extension.pem && mv src.crx semiscreen.crx
+        - bash crxmake.sh src/ extension.pem && mv src.crx $CIRCLE_ARTIFACTS/semiscreen.crx
