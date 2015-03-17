@@ -37,11 +37,21 @@ var SemiscreenExtension = {};
 
         this.fullSize = function() {
             isFullsized = true;
-            element
+            context.Events.register('resize', this.resize);
         };
 
         this.resetSize = function() {
             isFullsized = false;
+            context.Events.unregister('resize', this.resize);
+        };
+
+        this.resize = (function() {
+            var size = this.getScaledSize();
+            console.log(this.getSize(), size, context.Utilities.getClientSize());
+        }).bind(this);
+
+        this.getScaledSize = function() {
+            return context.Utilities.contain(this.getSize(), context.Utilities.getClientSize());
         };
 
         this.getSize = function() {
@@ -51,6 +61,43 @@ var SemiscreenExtension = {};
             ];
         };
     };
+
+    context.Events = (function () {
+        var registered = {};
+
+        var fire = function(eventType, event, context) {
+            context = context || window;
+
+            if (!registered.hasOwnProperty('resize'))
+                return;
+
+            for (var i = 0; i < registered[eventType].length; i++)
+                registered[eventType][i].call(context, event);
+        };
+
+        window.addEventListener('resize', (function (event) {
+            fire('resize', event);
+        }).bind(this));
+
+        return {
+            register: function (eventType, eventHandler) {
+                if (!registered.hasOwnProperty(eventType))
+                    registered[eventType] = [];
+
+                registered[eventType].push(eventHandler);
+            },
+            unregister: function(eventType, eventHandler) {
+                if (!registered.hasOwnProperty(eventType))
+                    return;
+
+                var index = registered[eventType].indexOf(eventHandler);
+                if (index == -1)
+                    return;
+
+                registered[eventType].splice(index, 1);
+            }
+        };
+    })();
 
     context.Utilities = {
         /**
