@@ -2,12 +2,19 @@ var SemiscreenExtension = {};
 
 (function (context) {
     context.Semiscreen = {
+        semiscreen: null,
+
         /**
          * Initializes semiscreen on the current page and handles all display logic.
          */
         init: function () {
             var elements = this.getElements();
             console.log(elements);
+
+            if (elements.length == 1) {
+                this.semiscreen = new context.SemiscreenItem(elements[0]);
+                this.semiscreen.fullSize();
+            }
         },
 
         /**
