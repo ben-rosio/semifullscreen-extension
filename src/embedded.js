@@ -117,14 +117,19 @@ var SemiscreenExtension = {};
                 realContainerSize[1] - padding[1]
             ];
 
-            var elementRatio = Math.min(
-                elementSize[0] / elementSize[1],
-                elementSize[1] / elementSize[0]
-            );
+            var widthRatio = containerSize[0] / elementSize[0];
+            var heightRatio = containerSize[1] / elementSize[1];
+            var elementRatio = Math.min(widthRatio, heightRatio);
 
             return [
                 Math.round(elementSize[0] * elementRatio),
                 Math.round(elementSize[1] * elementRatio)
+            ];
+        },
+        getClientSize: function() {
+            return [
+                window.innerWidth,
+                window.innerHeight
             ];
         }
     };
