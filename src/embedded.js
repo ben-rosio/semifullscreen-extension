@@ -43,32 +43,24 @@ if (typeof window.SemiscreenExtension == 'undefined')
          */
         getElements: function () {
             //var videoElements = document.getElementsByTagName("video");
-            var videoElements = [ document.getElementById('player-api') ];
+            var videoElements = document.querySelectorAll('#player-api');
 
             var elements = videoElements;
 
             return elements;
-        },
-
-        /**
-         * Given an element return a semiscreen object for it.
-         * @param element
-         * @return SemiscreenItem
-         */
-        semiscreenElement: function(element) {
-            // TODO
         }
     };
 
     context.SemiscreenItem = function(element) {
         var isFullsized = false;
         var originalElements = new context.OriginalElements();
+        var cinemaizer = new context.Cinemaizer(element);
 
         this.fullSize = function() {
             isFullsized = true;
 
             // Set the container element to absolute and a high zindex.
-            originalElements.push(element, { styles: ["zIndex", "top", "left", "position", "width", "height"], attributes: ["width", "height"] });
+            originalElements.push(element, { styles: ["z-index", "top", "left", "position", "width", "height"], attributes: ["width", "height"] });
             element.style.position = "absolute";
             element.style.zIndex = 1000;
 
@@ -84,6 +76,9 @@ if (typeof window.SemiscreenExtension == 'undefined')
                 elementToCleanUp.style.height = "100%";
             } while ((elementToCleanUp = elementToCleanUp.parentNode) != element);
 
+            // Create and start cinemaizer
+            cinemaizer.start();
+
             // Register resize event and trigger a resize.
             context.Events.register('resize', this.resize);
             this.resize();
@@ -93,6 +88,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
             isFullsized = false;
             context.Events.unregister('resize', this.resize);
             originalElements.revert();
+            cinemaizer.stop();
         };
 
         this.resize = (function() {
@@ -128,6 +124,44 @@ if (typeof window.SemiscreenExtension == 'undefined')
             ];
         };
     };
+
+    context.Cinemaizer = (function (element) {
+        var originalElements = new context.OriginalElements();
+
+        var setReverter = function(reverter) {
+            originalElements = reverter;
+        }
+        var start = function() {
+            var body = document.body;
+
+            // Hide all siblings of all parent elements
+            var ancestor = element;
+            do {
+                var siblings = context.Utilities.getSiblings(ancestor);
+
+                for (var sibling in siblings) {
+                    if (originalElements)
+                        originalElements.push(siblings[sibling], { styles: ["display"] });
+
+                    siblings[sibling].style.display = "none";
+                }
+            } while ((ancestor = ancestor.parentNode) != body);
+
+            // Change bg to black
+            originalElements.push(body, { styles: ["background-color"] });
+            body.style.backgroundColor = "black";
+        };
+        var stop = function() {
+            originalElements.revert();
+        };
+
+
+        return {
+            setReverter: setReverter.bind(this),
+            start: start.bind(this),
+            stop: stop.bind(this)
+        }
+    });
 
     context.Events = (function () {
         var registered = {};
@@ -278,6 +312,18 @@ if (typeof window.SemiscreenExtension == 'undefined')
                 window.innerWidth,
                 window.innerHeight
             ];
+        },
+        getSiblings: function(element) {
+            var siblings = [];
+            var children = element.parentNode.children;
+
+            for (var child = 0; child < children.length; child++) {
+                if (children[child] == element)
+                    continue;
+                siblings.push(children[child]);
+            }
+
+            return siblings;
         }
     };
 
