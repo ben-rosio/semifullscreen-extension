@@ -10,5 +10,6 @@ general:
 
 test:
     post:
-        - echo "$PRIVATE_PACKER_KEY" > extension.pem
+        - echo "$private_packer_key" > extension.pem
+        - sed -i "s/__/\n/g" extension.pem
         - bash crxmake.sh src/ extension.pem && mv src.crx semiscreen.crx
