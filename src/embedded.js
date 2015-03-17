@@ -1,5 +1,7 @@
+var SemiscreenExtension = {};
+
 (function (context) {
-    var Semiscreen = {
+    context.Semiscreen = {
         /**
          * Initializes semiscreen on the current page and handles all display logic.
          */
@@ -13,25 +15,33 @@
          * Add elements here to be recongized by semiscreen.
          */
         getElements: function () {
-            var videoElements = context.getElementsByTagName("video");
+            var videoElements = document.getElementsByTagName("video");
 
             var elements = videoElements;
 
             return elements;
+        },
+
+        /**
+         * Given an element return a semiscreen object for it.
+         * @param element
+         * @return SemiscreenItem
+         */
+        semiscreenElement: function(element) {
+            // TODO
         }
     };
 
-    var SemiscreenItem = function(element) {
+    context.SemiscreenItem = function(element) {
         var isFullsized = false;
 
         this.fullSize = function() {
             isFullsized = true;
-            // TODO
+            element
         };
 
         this.resetSize = function() {
             isFullsized = false;
-            // TODO
         };
 
         this.getSize = function() {
@@ -42,7 +52,7 @@
         };
     };
 
-    var Utilities = {
+    context.Utilities = {
         /**
          * Given a container and element size, return an element size
          * proportionally resized to fit in container.
@@ -72,5 +82,5 @@
         }
     };
 
-    Semiscreen.init();
-})(document);
+    context.Semiscreen.init();
+})(SemiscreenExtension);
