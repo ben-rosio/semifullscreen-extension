@@ -53,27 +53,35 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
     context.SemiscreenItem = function(element) {
         var isFullsized = false;
-        var originalElements = new context.OriginalElements();
+        var domWrapper = new context.StatefulDom();
         var cinemaizer = new context.Cinemaizer(element);
 
         this.fullSize = function() {
             isFullsized = true;
 
             // Set the container element to absolute and a high zindex.
-            originalElements.push(element, { styles: ["z-index", "top", "left", "position", "width", "height"], attributes: ["width", "height"] });
-            element.style.position = "absolute";
-            element.style.zIndex = 1000;
+            domWrapper.style(element, {
+                "z-index": 1000,
+                "position": "absolute"
+            });
+            domWrapper.attribute(element, {
+                "width": "auto",
+                "height": "auto"
+            });
 
             // Find the video element and resize it and everything up to the given container method to 100%,
             // This way everything will refit to the correct size.
             var elementToCleanUp = element.querySelector("video, embed");
 
             do {
-                originalElements.push(elementToCleanUp, { styles: ["height", "width"], attributes: ["height", "width"] });
-                elementToCleanUp.removeAttribute("width");
-                elementToCleanUp.removeAttribute("height");
-                elementToCleanUp.style.width = "100%";
-                elementToCleanUp.style.height = "100%";
+                domWrapper.style(elementToCleanUp, {
+                    "height": "100%",
+                    "width": "100%"
+                });
+                domWrapper.attribute(elementToCleanUp, {
+                    "height": null,
+                    "width": null
+                });
             } while ((elementToCleanUp = elementToCleanUp.parentNode) != element);
 
             // Create and start cinemaizer
@@ -87,7 +95,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
         this.resetSize = function() {
             isFullsized = false;
             context.Events.unregister('resize', this.resize);
-            originalElements.revert();
+            domWrapper.revert();
             cinemaizer.stop();
         };
 
@@ -97,16 +105,22 @@ if (typeof window.SemiscreenExtension == 'undefined')
             var size = this.getScaledSize();
             this.setSize(size);
             this.setPosition(context.Utilities.center(size, context.Utilities.getClientSize()));
+
+            domWrapper.reenforce();
         }).bind(this);
 
         this.setSize = function(size) {
-            element.style.width = size[0] + "px";
-            element.style.height = size[1] + "px";
+            domWrapper.style(element, {
+                "width": size[0] + "px",
+                "height": size[1] + "px"
+            });
         };
 
         this.setPosition = function(position) {
-            element.style.left = position[0] + "px";
-            element.style.top = position[1] + "px";
+            domWrapper.style(element, {
+                "left": position[0] + "px",
+                "top": position[1] + "px"
+            });
         };
 
         this.isFullsized = function() {
@@ -119,17 +133,17 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
         this.getSize = function() {
             return [
-                element.offsetWidth,
-                element.offsetHeight
+                element.offsetWidth || 0,
+                element.offsetHeight || 0
             ];
         };
     };
 
     context.Cinemaizer = (function (element) {
-        var originalElements = new context.OriginalElements();
+        var domWrapper = new context.StatefulDom();
 
-        var setReverter = function(reverter) {
-            originalElements = reverter;
+        var setStatefulDom = function(domWrapper) {
+            domWrapper = domWrapper;
         }
         var start = function() {
             var body = document.body;
@@ -140,24 +154,20 @@ if (typeof window.SemiscreenExtension == 'undefined')
                 var siblings = context.Utilities.getSiblings(ancestor);
 
                 for (var sibling in siblings) {
-                    if (originalElements)
-                        originalElements.push(siblings[sibling], { styles: ["display"] });
-
-                    siblings[sibling].style.display = "none";
+                    domWrapper.style(siblings[sibling], { "display": "none" });
                 }
             } while ((ancestor = ancestor.parentNode) != body);
 
             // Change bg to black
-            originalElements.push(body, { styles: ["background-color"] });
-            body.style.backgroundColor = "black";
+            domWrapper.style(body, { "background-color": "black" });
         };
         var stop = function() {
-            originalElements.revert();
+            domWrapper.revert();
         };
 
 
         return {
-            setReverter: setReverter.bind(this),
+            setStatefulDom: setStatefulDom.bind(this),
             start: start.bind(this),
             stop: stop.bind(this)
         }
@@ -203,67 +213,135 @@ if (typeof window.SemiscreenExtension == 'undefined')
     /**
      * Stores given elements and their values so they can be reverted.
      */
-    context.OriginalElements = function () {
+    context.StatefulDom = function () {
         var elements = [];
-        /**
-         * Add an element to store the values of.
-         *
-         * @param element Element
-         * @param toStore Object Contains the keys attributes and styles.  Each has an array of items whose values should be stored.
-         */
-        this.push = function(element, toStore) {
-            var attributes = {};
-            var styles = {};
-            var i = 0;
+        this.style = function(element, styles) {
+            var wrap = wrapElement(element);
 
-            if (toStore.hasOwnProperty('attributes')) {
-                for (i in toStore.attributes) {
-                    if (!element.hasAttribute(toStore.attributes[i]))
-                        attributes[toStore.attributes[i]] = null;
-                    else
-                        attributes[toStore.attributes[i]] = element.getAttribute(toStore.attributes[i]);
-                }
+            for (var styleRule in styles) {
+                wrap.setStyle(styleRule, styles[styleRule]);
             }
+        };
+        this.attribute = function(element, attributes) {
+            var wrap = wrapElement(element);
 
-            if (toStore.hasOwnProperty('styles')) {
-                for (i in toStore.styles) {
-                    if (typeof element.style == 'undefined' || !element.style.hasOwnProperty(toStore.styles[i]) || element.style[toStore.styles[i]] == "")
-                        styles[toStore.styles[i]] = null;
-                    else
-                        styles[toStore.styles[i]] = element.style[toStore.styles[i]];
-                }
+            for (var attributeName in attributes) {
+                wrap.setAttribute(attributeName, attributes[attributeName]);
             }
+        };
 
-            elements.push({
-                element: element,
-                attributes: attributes,
-                styles: styles
-            });
+        this.reenforce = function() {
+            for (var i in elements)
+                elements[i].reenforce();
         };
 
         this.revert = function() {
-            for (var i in elements) {
-                var element = elements[i].element;
-                var attributes = elements[i].attributes;
-                var styles = elements[i].styles;
-                var j = 0;
+            for (var i in elements)
+                elements[i].revert();
+        };
 
-                for (j in attributes) {
-                    if (attributes[j] === null)
-                        element.removeAttribute(j);
-                    else
-                        element.setAttribute(j, attributes[j]);
-                }
+        var wrapElement = function(element) {
+            // Find element in elements if it exists
+            for (var i in elements)
+                if (elements[i].getElement() == element)
+                    return elements[i];
 
-                for (j in styles) {
-                    if (styles[j] === null)
-                        element.style.removeProperty(j);
-                    else
-                        element.style[j] = styles[j];
-                }
+            var elementWrap = new ElementWrap(element);
+
+            elements.push(elementWrap);
+
+            return elementWrap;
+        };
+
+        var ElementWrap = function (element) {
+            var originalstyles = {};
+            var originalattributes = {};
+            var attributes = {};
+            var styles = {};
+
+            this.setStyle = function(ruleName, rule) {
+                var camalCasedName = toCamalCase(ruleName);
+
+                this.add('originalstyle', ruleName, this.getStyle(camalCasedName), false);
+                this.add('style', ruleName, rule, true);
+
+                if (rule === null)
+                    element.style.removeProperty(ruleName); // Must use non-camalcased name for whatever reason.
+                else
+                    element.style[camalCasedName] = rule;
+            };
+            this.setAttribute = function(attributeName, attributeValue) {
+                this.add('originalattribute', attributeName, this.getAttribute(attributeName), false);
+                this.add('attribute', attributeName, attributeValue, true);
+
+                if (attributeValue === null)
+                    element.removeAttribute(attributeName);
+                else
+                    element.setAttribute(attributeName, attributeValue);
+            };
+
+            this.add = function (type, key, value, overwrite) {
+                overwrite = typeof(overwrite) == "undefined" ? false : overwrite;
+
+                if (!overwrite && getTypeObject(type).hasOwnProperty(key))
+                    return;
+
+                getTypeObject(type)[key] = value;
+            };
+
+            this.reenforce = function() {
+                for (var rule in styles)
+                    this.setStyle(rule, styles[rule]);
+
+                for (var name in attributes)
+                    this.setAttribute(name, attributes[name]);
+            };
+
+            this.revert = function() {
+                for (var rule in originalstyles)
+                    this.setStyle(rule, originalstyles[rule]);
+
+                for (var name in originalattributes)
+                    this.setAttribute(name, originalattributes[name]);
+            };
+
+            this.getStyle = function(ruleName) {
+                var camalCasedName = toCamalCase(ruleName);
+
+                if (typeof element.style != 'undefined' && element.style.hasOwnProperty(camalCasedName) && element.style[camalCasedName] != "")
+                    return element.style[camalCasedName];
+
+                return null;
+            };
+            this.getAttribute = function(attributeName) {
+                if (element.hasAttribute(attributeName))
+                    return element.getAttribute(attributeName);
+                else
+                    return null;
+            };
+            this.getElement = function() {
+                return element;
+            };
+
+            var getTypeObject = function (type) {
+                switch (type) {
+                    case "originalstyle": return originalstyles;
+                    case "style": return styles;
+                    case "originalattribute": return originalattributes;
+                    case "attribute": return attributes;
+                };
+
+                throw new Error("Could not find storage type '" + type + "'.");
             }
+        };
 
-            elements = [];
+        var toCamalCase = function (value) {
+            var camalCase = "";
+            value.split("-").forEach(function (part, i) {
+                camalCase += ((i == 0) ? part : part[0].toUpperCase() + part.slice(1));
+            });
+
+            return camalCase;
         };
     };
 
