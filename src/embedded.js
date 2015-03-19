@@ -76,7 +76,13 @@ if (typeof window.SemiscreenExtension == 'undefined')
             do {
                 domWrapper.style(elementToCleanUp, {
                     "height": "100%",
-                    "width": "100%"
+                    "width": "100%",
+                    "padding": "0",
+                    "margin": "0",
+                    "top": "0",
+                    "left": "0",
+                    "bottom": "0",
+                    "right": "0"
                 });
                 domWrapper.attribute(elementToCleanUp, {
                     "height": null,
