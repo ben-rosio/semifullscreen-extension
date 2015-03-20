@@ -43,7 +43,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
          */
         getElements: function () {
             //var videoElements = document.getElementsByTagName("video");
-            var videoElements = document.querySelectorAll('#player-api');
+            var videoElements = document.querySelectorAll('#player-api, #playerwrapp');
 
             var elements = videoElements;
 
@@ -53,11 +53,14 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
     context.SemiscreenItem = function(element) {
         var isFullsized = false;
+        var originalSize = null;
         var domWrapper = new context.StatefulDom();
         var cinemaizer = new context.Cinemaizer(element);
 
         this.fullSize = function() {
             isFullsized = true;
+
+            originalSize = this.getSize();
 
             // Set the container element to absolute and a high zindex.
             domWrapper.style(element, {
@@ -71,24 +74,26 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
             // Find the video element and resize it and everything up to the given container method to 100%,
             // This way everything will refit to the correct size.
-            var elementToCleanUp = element.querySelector("video, embed");
+            var elementToCleanUp = element.querySelector("video, object");
 
-            do {
-                domWrapper.style(elementToCleanUp, {
-                    "height": "100%",
-                    "width": "100%",
-                    "padding": "0",
-                    "margin": "0",
-                    "top": "0",
-                    "left": "0",
-                    "bottom": "0",
-                    "right": "0"
-                });
-                domWrapper.attribute(elementToCleanUp, {
-                    "height": null,
-                    "width": null
-                });
-            } while ((elementToCleanUp = elementToCleanUp.parentNode) != element);
+            if (elementToCleanUp !== null) {
+                do {
+                    domWrapper.style(elementToCleanUp, {
+                        "height": "100%",
+                        "width": "100%",
+                        "padding": "0",
+                        "margin": "0",
+                        "top": "0",
+                        "left": "0",
+                        "bottom": "0",
+                        "right": "0"
+                    });
+                    domWrapper.attribute(elementToCleanUp, {
+                        "height": null,
+                        "width": null
+                    });
+                } while ((elementToCleanUp = elementToCleanUp.parentNode) != element.parentNode);
+            }
 
             // Create and start cinemaizer
             cinemaizer.start();
@@ -134,7 +139,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
         };
 
         this.getScaledSize = function() {
-            return context.Utilities.contain(this.getSize(), context.Utilities.getClientSize());
+            return context.Utilities.contain(originalSize, context.Utilities.getClientSize());
         };
 
         this.getSize = function() {
