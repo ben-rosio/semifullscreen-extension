@@ -69,7 +69,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
             });
             domWrapper.attribute(element, {
                 "width": "auto",
-                "height": "auto"
+                "height": "auto",
+                "class": ''
             });
 
             // Find the video element and resize it and everything up to the given container method to 100%,
@@ -90,7 +91,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
                     });
                     domWrapper.attribute(elementToCleanUp, {
                         "height": null,
-                        "width": null
+                        "width": null,
+                        "class": ''
                     });
                 } while ((elementToCleanUp = elementToCleanUp.parentNode) != element.parentNode);
             }
