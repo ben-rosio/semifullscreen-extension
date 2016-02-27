@@ -194,6 +194,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
             do {
                 var siblings = context.Utilities.getSiblings(ancestor);
 
+                domWrapper.style(ancestor, { "background-color": "black" });
+
                 for (var sibling in siblings) {
                     domWrapper.style(siblings[sibling], { "display": "none" });
                 }
