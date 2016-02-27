@@ -50,7 +50,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
          */
         getElements: function () {
             //var videoElements = document.getElementsByTagName("video");
-            var videoElements = document.querySelectorAll('#player-api, #playerwrapp, iframe, object, embed');
+            var videoElements = document.querySelectorAll('#player-api, #playerwrapp, #video, iframe, object, embed');
 
             var elements = videoElements;
 
@@ -93,11 +93,18 @@ if (typeof window.SemiscreenExtension == 'undefined')
                     domWrapper.style(elementToCleanUp, {
                         "width": "100%", "height": "100%",
                         "padding": "0", "margin": "0",
-                        "top": "0", "left": "0", "bottom": "0", "right": "0"
+                        "top": "0", "left": "0", "bottom": "0", "right": "0",
+                        "position": "absolute"
                     });
                     domWrapper.attribute(elementToCleanUp, {
                         "width": null, "height": null,
                         "class": ''
+                    });
+
+                    context.Utilities.getSiblings(elementToCleanUp).forEach(function (sibling) {
+                        domWrapper.style(sibling, {
+                            "display": "none"
+                        });
                     });
                 } while ((elementToCleanUp = elementToCleanUp.parentNode) != element.parentNode);
             }
@@ -108,7 +115,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
                 domWrapper.style(elementToCleanUp, {
                     "border": "0", "color": "black",
                     "margin": "0", "padding": "0",
-                    "width": "0", "height": "0"
+                    "overflow": "visible",
+                    "width": "auto", "height": "auto"
                 });
             } while ((elementToCleanUp = elementToCleanUp.parentNode) != document.body);
 
