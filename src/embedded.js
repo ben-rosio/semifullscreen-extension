@@ -22,9 +22,16 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
             var elements = this.getElements();
 
-            if (elements.length == 1) {
+            if (elements.length == 0) {
+                alert('No elements found.');
+            } else if (elements.length == 1) {
                 this.semiscreen = new context.SemiscreenItem(elements[0]);
                 this.semiscreen.fullSize();
+            } else {
+                context.SelectElementPrompt.pickOne(elements, function (element, evt) {
+                    this.semiscreen = new context.SemiscreenItem(element);
+                    this.semiscreen.fullSize();
+                }.bind(this));
             }
         },
 
@@ -43,7 +50,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
          */
         getElements: function () {
             //var videoElements = document.getElementsByTagName("video");
-            var videoElements = document.querySelectorAll('#player-api, #playerwrapp');
+            var videoElements = document.querySelectorAll('#player-api, #playerwrapp, iframe, object, embed');
 
             var elements = videoElements;
 
@@ -58,7 +65,11 @@ if (typeof window.SemiscreenExtension == 'undefined')
         var cinemaizer = new context.Cinemaizer(element);
 
         this.fullSize = function() {
+            if (isFullsized) return;
+
             isFullsized = true;
+
+            document.body.scrollTop = 0;
 
             originalSize = this.getSize();
 
@@ -75,27 +86,37 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
             // Find the video element and resize it and everything up to the given container method to 100%,
             // This way everything will refit to the correct size.
-            var elementToCleanUp = element.querySelector("video, object");
+            var elementToCleanUp = element.querySelector("video, object, embed");
 
             if (elementToCleanUp !== null) {
                 do {
                     domWrapper.style(elementToCleanUp, {
-                        "height": "100%",
-                        "width": "100%",
-                        "padding": "0",
-                        "margin": "0",
-                        "top": "0",
-                        "left": "0",
-                        "bottom": "0",
-                        "right": "0"
+                        "width": "100%", "height": "100%",
+                        "padding": "0", "margin": "0",
+                        "top": "0", "left": "0", "bottom": "0", "right": "0"
                     });
                     domWrapper.attribute(elementToCleanUp, {
-                        "height": null,
-                        "width": null,
+                        "width": null, "height": null,
                         "class": ''
                     });
                 } while ((elementToCleanUp = elementToCleanUp.parentNode) != element.parentNode);
             }
+
+            // Set margins, padding, and border to zero on all parent elements
+            elementToCleanUp = element;
+            do {
+                domWrapper.style(elementToCleanUp, {
+                    "border": "0", "color": "black",
+                    "margin": "0", "padding": "0",
+                    "width": "0", "height": "0"
+                });
+            } while ((elementToCleanUp = elementToCleanUp.parentNode) != document.body);
+
+            // Lastly don't allow scrolling
+            domWrapper.style(document.body, {
+                "width": "100%", "height": "100%",
+                "overflow": "hidden"
+            })
 
             // Create and start cinemaizer
             cinemaizer.start();
@@ -115,9 +136,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
         this.resize = (function() {
             if (!this.isFullsized()) return;
 
-            var size = this.getScaledSize();
-            this.setSize(size);
-            this.setPosition(context.Utilities.center(size, context.Utilities.getClientSize()));
+            this.setSize(this.getScaledSize());
+            this.setPosition(context.Utilities.center(this.getSize(), context.Utilities.getClientSize()));
 
             domWrapper.reenforce();
         }).bind(this);
@@ -155,8 +175,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
     context.Cinemaizer = (function (element) {
         var domWrapper = new context.StatefulDom();
 
-        var setStatefulDom = function(domWrapper) {
-            domWrapper = domWrapper;
+        var setStatefulDom = function(dWrapper) {
+            domWrapper = dWrapper;
         }
         var start = function() {
             var body = document.body;
@@ -186,6 +206,76 @@ if (typeof window.SemiscreenExtension == 'undefined')
         }
     });
 
+    context.SelectElementPrompt = new (function (context) {
+        this.originalDom = null;
+        this.questionAsked = false;
+
+        /**
+         * Creates element that covers the given one.
+         */
+        var createClickableOverlay = function(element) {
+            var overlay = document.createElement('div');
+            var absPos = context.Utilities.elementAbsolutePosition(element);
+
+            overlay.style.position = 'absolute';
+
+            overlay.style.top = absPos.top + 'px';
+            overlay.style.left = absPos.left + 'px';
+
+            overlay.style.width = element.offsetWidth + 'px';
+            overlay.style.height = element.offsetHeight + 'px';
+            overlay.style.zIndex = 999999;
+
+            return overlay;
+        };
+
+        var onePickedCallback = function(element, evt) {
+            evt.preventDefault();
+
+            this.questionAsked.callback.call(this, element, evt);
+            this.questionAsked = false;
+
+            this.originalDom.revert();
+
+            return false; // Don't propagate
+        };
+
+        /**
+         * Asks the user to click on one of the elements given
+         * to choose it.
+         *
+         * @returns Element choosen, or null on cancel.
+         */
+        var pickOne = function (elements, callback) {
+            if (elements.length <= 0) return null;
+            if (elements.length == 1) return elements[0];
+
+            if (this.originalDom === null)
+                this.originalDom = new context.StatefulDom();
+
+            if (this.questionAsked !== false)
+                throw "User already asked question!";
+
+
+            this.questionAsked = {'elements': elements, 'callback': callback};
+
+            var i;
+            for (i = 0; i < elements.length; i++) {
+                var elCallback = context.Utilities.partial(onePickedCallback, elements[i]).bind(this);
+
+                var clickableOverlay = createClickableOverlay(elements[i]);
+                clickableOverlay.style.border = '2px solid green';
+                clickableOverlay.onclick = elCallback.bind(this);
+
+                this.originalDom.sibling(document.body, clickableOverlay);
+            }
+        };
+
+        return {
+            pickOne: pickOne.bind(this)
+        };
+    })(context);
+
     context.Events = (function () {
         var registered = {};
 
@@ -199,6 +289,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
                 registered[eventType][i].call(context, event);
         };
 
+//# TODO Move
         window.addEventListener('resize', (function (event) {
             fire('resize', event);
         }).bind(this));
@@ -243,6 +334,12 @@ if (typeof window.SemiscreenExtension == 'undefined')
             }
         };
 
+        this.sibling = function(targetElement, newElement) {
+            var wrap = wrapElement(targetElement);
+
+            wrap.addSibling(newElement);
+        };
+
         this.reenforce = function() {
             for (var i in elements)
                 elements[i].reenforce();
@@ -272,6 +369,8 @@ if (typeof window.SemiscreenExtension == 'undefined')
             var attributes = {};
             var styles = {};
 
+            var siblings = [];
+
             this.setStyle = function(ruleName, rule) {
                 var camalCasedName = toCamalCase(ruleName);
 
@@ -293,6 +392,14 @@ if (typeof window.SemiscreenExtension == 'undefined')
                     element.setAttribute(attributeName, attributeValue);
             };
 
+            this.addSibling = function(siblingElement) {
+                if (siblings.includes(siblingElement)) return;
+
+                context.Utilities.insertAfter(siblingElement, element);
+
+                siblings.push(siblingElement);
+            };
+
             this.add = function (type, key, value, overwrite) {
                 overwrite = typeof(overwrite) == "undefined" ? false : overwrite;
 
@@ -308,6 +415,9 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
                 for (var name in attributes)
                     this.setAttribute(name, attributes[name]);
+
+                for (var i in siblings)
+                    this.addSibling(siblings[i]);
             };
 
             this.revert = function() {
@@ -316,6 +426,9 @@ if (typeof window.SemiscreenExtension == 'undefined')
 
                 for (var name in originalattributes)
                     this.setAttribute(name, originalattributes[name]);
+
+                for (var i in siblings)
+                    siblings[i].parentNode.removeChild(siblings[i]);
             };
 
             this.getStyle = function(ruleName) {
@@ -348,6 +461,7 @@ if (typeof window.SemiscreenExtension == 'undefined')
             }
         };
 
+//#TODO - Move utilties
         var toCamalCase = function (value) {
             var camalCase = "";
             value.split("-").forEach(function (part, i) {
@@ -415,6 +529,55 @@ if (typeof window.SemiscreenExtension == 'undefined')
             }
 
             return siblings;
+        },
+
+        // Taken from Underscore.js
+        executeBound: function(sourceFunc, boundFunc, context, callingContext, args) {
+            if (!(callingContext instanceof boundFunc)) return sourceFunc.apply(context, args);
+            var self = baseCreate(sourceFunc.prototype);
+            var result = sourceFunc.apply(self, args);
+            if (_.isObject(result)) return result;
+            return self;
+        },
+        partial: function(func) {
+            var boundArgs = Array.prototype.slice.call(arguments, 1);
+            var bound = function() {
+                var position = 0, length = boundArgs.length;
+                var args = Array(length);
+                for (var i = 0; i < length; i++) {
+                    args[i] = boundArgs[i] === null ? arguments[position++] : boundArgs[i];
+                }
+                while (position < arguments.length) args.push(arguments[position++]);
+                return context.Utilities.executeBound(func, bound, this, this, args);
+            };
+            return bound;
+        },
+        insertAfter: function(newElement, targetElement) {
+            // Target is what you want it to go after. Look for this elements parent.
+            var par = targetElement.parentNode;
+
+            // If the parents lastchild is the targetElement...
+            if(par.lastchild == targetElement) {
+                // Add the newElement after the target element.
+                par.appendChild(newElement);
+            } else {
+                // Else the target has siblings, insert the new element between the target and it's next sibling.
+                par.insertBefore(newElement, targetElement.nextSibling);
+            }
+        },
+
+        // http://stackoverflow.com/questions/442404/retrieve-the-position-x-y-of-an-html-element
+        elementAbsolutePosition: function(el) {
+            var _x = 0;
+            var _y = 0;
+
+            while(el && !isNaN(el.offsetLeft) && !isNaN(el.offsetTop)) {
+                _x += el.offsetLeft + el.clientLeft;
+                _y += el.offsetTop + el.clientTop;
+                el = el.offsetParent;
+            }
+
+            return {left: _x, top: _y};
         }
     };
 
